@@ -1,13 +1,11 @@
 require "taipei_ebus/version"
 require 'nokogiri'
 require 'open-uri'
-require 'uri'
-require 'net/https'
 require 'json'
 
 module TaipeiEbus
 
-  class TaipeiEbus
+  class Client
 
     EBUS_URL = [
       "http://e-bus.taipei.gov.tw/newmap",
@@ -17,7 +15,8 @@ module TaipeiEbus
 
     #
     # get all buslines
-    # this will return a json array: [ { :title => "xxx", :rid => nnn, :url_id => n }, ... ]
+    # 
+    # @return an array of hash objects: [ { :title => "xxx", :rid => nnn, :url_id => n }, ... ]
     #
     def get_buslines
       json_busline_lists = []
@@ -39,7 +38,15 @@ module TaipeiEbus
 
     #
     # get busline info by title
-    # this will return a json object: { :title => "xxx", :rid => nnn, :url_id => n }
+    # 
+    # @param title: a busline title (string)
+    # @param buslines: a list of busline (hash array)
+    # 
+    # @return a json object: { :title => "xxx", :rid => nnn, :url_id => n }
+    # 
+    # @example
+    #     get_busline_info_by_title("241"), or
+    #     get_busline_info_by_title("241", buslines)
     #
     def get_busline_info_by_title(title, buslines=[])
       busline = {}
@@ -59,11 +66,20 @@ module TaipeiEbus
 
     #
     # get busline stops
-    # example url =
-    # go: http://e-bus.ntpc.gov.tw/NTPCRoute/Tw/Map?rid=5220&sec=0
-    # back: http://e-bus.ntpc.gov.tw/NTPCRoute/Tw/Map?rid=5220&sec=1
-    # this will return a json object: 
-    # { :go => [ { :idx => nn, :name => "xxx" }, ...], :back => [] }
+    # 
+    # @param rid: route id (string)
+    # @param url_id: index value of EBUS_URL[] (string or number)
+    # @param direction: 0 (go) or 1 (back)
+    # 
+    # @return a hash of object
+    #   { :go => [ { :idx => nn, :name => "xxx" }, ... ], :back => [ ... ] }
+    # 
+    # @example
+    #     get_busline_stops("5220", 1), or
+    #     get_busline_stops("5220", 1, 0)
+    #     
+    #     go url: http://e-bus.ntpc.gov.tw/NTPCRoute/Tw/Map?rid=5220&sec=0
+    #     back url: http://e-bus.ntpc.gov.tw/NTPCRoute/Tw/Map?rid=5220&sec=1
     #
     def get_busline_stops(rid, url_id, direction={})
       route_stops = { :go => [], :back => [] }
@@ -93,11 +109,20 @@ module TaipeiEbus
 
     #
     # get route real time information update
-    # example url =
-    # go: http://e-bus.ntpc.gov.tw/NTPCRoute/Js/RouteInfo?rid=5220&sec=0
-    # back: http://e-bus.ntpc.gov.tw/NTPCRoute/Js/RouteInfo?rid=5220&sec=1
-    # this will return a json object:
-    # { :go => { :Etas => [ { :idx => nn, :eta => nnn }, ...], :Buses => [ { :bn => "xxx", :idx => nn, :fl => "x", :io => "x" }, ...] }, :back => {} }
+    # 
+    # @param rid: route id (string)
+    # @param url_id: index value of EBUS_URL[] (string or number)
+    # @param direction: 0 (go) or 1 (back)
+    # 
+    # @return a hash of object
+    #     { :go => { :Etas => [ { :idx => nn, :eta => nnn }, ... ], :Buses => [ { :bn => "xxx", :idx => nn, :fl => "x", :io => "x" }, ... ] }, :back => { ... } }
+    # 
+    # @example
+    #     get_busline_current_update("5220", 1), or
+    #     get_busline_current_update("5220", 1, 0)
+    # 
+    #     go url: http://e-bus.ntpc.gov.tw/NTPCRoute/Js/RouteInfo?rid=5220&sec=0
+    #     back url: http://e-bus.ntpc.gov.tw/NTPCRoute/Js/RouteInfo?rid=5220&sec=1
     #
     def get_busline_current_update(rid, url_id, direction={})
       busline_update = { :go => {}, :back => {} }
@@ -105,14 +130,14 @@ module TaipeiEbus
       if (url_id.to_i >= 0 && url_id.to_i < EBUS_URL.length)
         url = "#{EBUS_URL[url_id.to_i]}/Js/RouteInfo?rid=#{rid}&sec="
 
-        if (direction.to_i == 0 || direction == {})
+        if ( direction == {} || direction.to_i == 0)
           doc = Nokogiri::HTML( open( url + "0"))
           if (doc.css('//body p').inner_html.include?("Etas"))
             busline_update[:go] = recursive_symbolize_keys(JSON.parse( doc.css('//body p').inner_html ))
           end
         end
 
-        if (direction.to_i == 1 || direction == {})
+        if ( direction == {} || direction.to_i == 1)
           doc = Nokogiri::HTML( open( url + "1"))
           if (doc.css('//body p').inner_html.include?("Etas"))
             busline_update[:back] = recursive_symbolize_keys(JSON.parse( doc.css('//body p').inner_html ))
@@ -167,22 +192,22 @@ module TaipeiEbus
     end # get_category_buslines
 
     #
-    # turns all string keys into symbols, also the nested ones
+    # turns all string type keys into symbols, also the nested ones
     #
-    def recursive_symbolize_keys(hash_obj)
-      case hash_obj
+    def recursive_symbolize_keys(obj)
+      case obj
       when Hash
         Hash[
-          hash_obj.map do |key, value|
+          obj.map do |key, value|
             [ key.respond_to?(:to_sym) ? key.to_sym : key, recursive_symbolize_keys(value) ]
           end
         ]
       when Enumerable
-        hash_obj.map { |value| recursive_symbolize_keys(value) }
+        obj.map { |value| recursive_symbolize_keys(value) }
       else
-        hash_obj
+        obj
       end
     end # recursive_symbolize_keys
 
-  end # class
-end # module
+  end # /class
+end # /module

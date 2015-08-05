@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["creativeongreen"]
   spec.email         = ["creativeongreen@gmail.com"]
   spec.summary       = %q{Taipei eBus API}
-  spec.description   = %q{Taipei eBus API}
+  spec.description   = %q{A few simple interfaces to interactive with Taipei eBus server.}
   spec.homepage      = "https://github.com/creativeongreen/RubyGem-Taipei_ebus"
   spec.license       = "MIT"
 
