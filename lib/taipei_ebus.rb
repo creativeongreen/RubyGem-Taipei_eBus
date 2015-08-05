@@ -3,6 +3,7 @@ require 'nokogiri'
 require 'open-uri'
 require 'uri'
 require 'net/https'
+require 'json'
 
 module TaipeiEbus
 
@@ -58,6 +59,9 @@ module TaipeiEbus
 
     #
     # get busline stops
+    # example url =
+    # go: http://e-bus.ntpc.gov.tw/NTPCRoute/Tw/Map?rid=5220&sec=0
+    # back: http://e-bus.ntpc.gov.tw/NTPCRoute/Tw/Map?rid=5220&sec=1
     # this will return a json object: 
     # { :go => [ { :idx => nn, :name => "xxx" }, ...], :back => [] }
     #
@@ -67,7 +71,7 @@ module TaipeiEbus
       if (url_id.to_i >= 0 && url_id.to_i < EBUS_URL.length)
         url = "#{EBUS_URL[url_id.to_i]}/Tw/Map?rid=#{rid}&sec="
 
-        if (direction == 0 || direction == {})
+        if ( direction == {} || direction.to_i == 0)
           # get GO stop list
           doc = Nokogiri::HTML( open( url + "0"), nil, 'UTF-8')
           (doc.css('//div.stopName')).each_with_index { | stop_name, i|
@@ -75,7 +79,7 @@ module TaipeiEbus
           }
         end
 
-        if (direction == 1 || direction == {})
+        if ( direction == {} || direction.to_i == 1)
           # get BACK stop list
           doc = Nokogiri::HTML( open( url + "1"), nil, 'UTF-8')
           (doc.css('//div.stopName')).each_with_index { | stop_name, i|
@@ -89,6 +93,9 @@ module TaipeiEbus
 
     #
     # get route real time information update
+    # example url =
+    # go: http://e-bus.ntpc.gov.tw/NTPCRoute/Js/RouteInfo?rid=5220&sec=0
+    # back: http://e-bus.ntpc.gov.tw/NTPCRoute/Js/RouteInfo?rid=5220&sec=1
     # this will return a json object:
     # { :go => { :Etas => [ { :idx => nn, :eta => nnn }, ...], :Buses => [ { :bn => "xxx", :idx => nn, :fl => "x", :io => "x" }, ...] }, :back => {} }
     #
@@ -98,14 +105,14 @@ module TaipeiEbus
       if (url_id.to_i >= 0 && url_id.to_i < EBUS_URL.length)
         url = "#{EBUS_URL[url_id.to_i]}/Js/RouteInfo?rid=#{rid}&sec="
 
-        if (direction == 0 || direction == {})
+        if (direction.to_i == 0 || direction == {})
           doc = Nokogiri::HTML( open( url + "0"))
           if (doc.css('//body p').inner_html.include?("Etas"))
             busline_update[:go] = recursive_symbolize_keys(JSON.parse( doc.css('//body p').inner_html ))
           end
         end
 
-        if (direction == 1 || direction == {})
+        if (direction.to_i == 1 || direction == {})
           doc = Nokogiri::HTML( open( url + "1"))
           if (doc.css('//body p').inner_html.include?("Etas"))
             busline_update[:back] = recursive_symbolize_keys(JSON.parse( doc.css('//body p').inner_html ))
